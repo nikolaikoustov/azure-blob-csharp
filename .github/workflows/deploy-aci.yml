@@ -1,0 +1,54 @@
+name: Deploy to Azure Container Instances
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+      AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+      AZURE_CONTAINER_INSTANCE: ${{ secrets.AZURE_CONTAINER_INSTANCE }}
+      AZURE_REGION: ${{ secrets.AZURE_REGION }}
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ env.AZURE_CREDENTIALS }}
+
+      - name: Build and push Docker image
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.AZURE_CONTAINER_REGISTRY }}
+          username: ${{ secrets.AZURE_CONTAINER_REGISTRY_USERNAME }}
+          password: ${{ secrets.AZURE_CONTAINER_REGISTRY_PASSWORD }}
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --build-arg AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }} \
+            --build-arg AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }} \
+            --build-arg AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }} \
+            -t ${{ env.AZURE_CONTAINER_REGISTRY }}/azure-blob-csharp:${{ github.sha }} .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/azure-blob-csharp:${{ github.sha }}
+
+      - name: Deploy to Azure Container Instances
+        uses: azure/aci-deploy@v1
+        with:
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          name: ${{ env.AZURE_CONTAINER_INSTANCE }}
+          image: ${{ env.AZURE_CONTAINER_REGISTRY }}/azure-blob-csharp:${{ github.sha }}
+          location: ${{ env.AZURE_REGION }}
+          dns-name-label: ${{ env.AZURE_CONTAINER_INSTANCE }}
+          ports: 80
+          environment-variables: AZURE_CLIENT_ID,AZURE_TENANT_ID,AZURE_SUBSCRIPTION_ID
