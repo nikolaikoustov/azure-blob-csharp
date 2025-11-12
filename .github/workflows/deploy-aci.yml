@@ -2,9 +2,6 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     env:
-      AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
-      AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-      AZURE_CONTAINER_INSTANCE: ${{ secrets.AZURE_CONTAINER_INSTANCE }}
       AZURE_REGION: 'North Europe'
       CONTAINER_NAME: ${{ inputs.container_name }}
 on:
@@ -28,30 +25,42 @@ on:
       - name: Build and push Docker image
         uses: azure/docker-login@v1
         with:
-          login-server: ${{ env.AZURE_CONTAINER_REGISTRY }}
+          login-server: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
           username: ${{ secrets.AZURE_CONTAINER_REGISTRY_USERNAME }}
           password: ${{ secrets.AZURE_CONTAINER_REGISTRY_PASSWORD }}
 
       - name: Build Docker image
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          CONTAINER_NAME: ${{ env.CONTAINER_NAME }}
+          AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
         run: |
           docker build \
-            --build-arg AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }} \
-            --build-arg AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }} \
-            --build-arg AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }} \
-            --build-arg CONTAINER_NAME=${{ env.CONTAINER_NAME }} \
-            -t ${{ env.AZURE_CONTAINER_REGISTRY }}/azure-blob-csharp:${{ github.sha }} .
+            --build-arg AZURE_CLIENT_ID=${AZURE_CLIENT_ID} \
+            --build-arg AZURE_TENANT_ID=${AZURE_TENANT_ID} \
+            --build-arg AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID} \
+            --build-arg CONTAINER_NAME=${CONTAINER_NAME} \
+            -t ${AZURE_CONTAINER_REGISTRY}/azure-blob-csharp:${{ github.sha }} .
 
       - name: Push Docker image
+        env:
+          AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
         run: |
-          docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/azure-blob-csharp:${{ github.sha }}
+          docker push ${AZURE_CONTAINER_REGISTRY}/azure-blob-csharp:${{ github.sha }}
 
       - name: Deploy to Azure Container Instances
         uses: azure/aci-deploy@v1
         with:
-          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
-          name: ${{ env.AZURE_CONTAINER_INSTANCE }}
-          image: ${{ env.AZURE_CONTAINER_REGISTRY }}/azure-blob-csharp:${{ github.sha }}
+          resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          name: ${{ secrets.AZURE_CONTAINER_INSTANCE }}
+          image: ${{ secrets.AZURE_CONTAINER_REGISTRY }}/azure-blob-csharp:${{ github.sha }}
           location: ${{ env.AZURE_REGION }}
-          dns-name-label: ${{ env.AZURE_CONTAINER_INSTANCE }}
+          dns-name-label: ${{ secrets.AZURE_CONTAINER_INSTANCE }}
           ports: 80
-          environment-variables: AZURE_CLIENT_ID,AZURE_TENANT_ID,AZURE_SUBSCRIPTION_ID,CONTAINER_NAME
+          environment-variables: |
+            AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}
+            AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}
+            AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}
+            CONTAINER_NAME=${{ env.CONTAINER_NAME }}
