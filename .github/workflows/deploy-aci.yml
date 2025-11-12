@@ -6,7 +6,7 @@ on:
 permissions:
   id-token: write
   contents: read
-  
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -60,6 +60,8 @@ jobs:
           image: ${{ secrets.AZURE_CONTAINER_REGISTRY }}/azure-blob-csharp:${{ github.sha }}
           location: ${{ env.AZURE_REGION }}
           dns-name-label: ${{ secrets.AZURE_CONTAINER_INSTANCE }}
+          cpu: 1
+          memory: 1
           ports: 80
           environment-variables: |
             AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}
