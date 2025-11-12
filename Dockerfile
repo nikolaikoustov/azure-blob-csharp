@@ -19,5 +19,9 @@ ENV AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
 ENV AZURE_TENANT_ID=${AZURE_TENANT_ID}
 ENV AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}
 
+# Parameterize container name
+ARG CONTAINER_NAME
+ENV CONTAINER_NAME=${CONTAINER_NAME}
+
 # Entrypoint for the app
-ENTRYPOINT ["dotnet", "azure-blob-csharp.dll"]
+CMD ["dotnet", "azure-blob-csharp.dll", "-containerName", "${CONTAINER_NAME}"]
